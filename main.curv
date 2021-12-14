@@ -1,0 +1,57 @@
+let
+  include lib.sketch;
+
+  width = 90.4;
+  length = 54.6;
+  height = 28.3;
+  thickness = 1.7;
+
+  base = workplane
+  // Front
+  >> h_line (width/2)
+  >> h_line (length/2)
+  >> v_line (height)
+  >> h_line (length/-2)
+  >> v_line (thickness*1.5)
+
+  // Side
+  >> h_line (thickness*2)
+  >> h_line (height)
+  >> h_line (thickness*2)
+  >> h_line (height)
+  >> v_line (length/3)
+  >> h_line (thickness*2)
+  >> v_line (length/3)
+  >> h_line (thickness*-2)
+  >> v_line (length/3)
+  >> h_line (-height)
+  >> h_line (thickness*-2)
+  >> h_line (-height)
+  >> h_line (thickness*-2)
+
+  // Back
+  >> v_line (thickness*1.5)
+  >> h_line (length/2)
+  >> v_line (height)
+  >> h_line (length/-2)
+
+  // Top
+  >> polar_line { distance: thickness*-1.5, angle: -25*deg }
+  >> polar_line { distance: sqrt(height^2 + (length/3)^2)-4, angle: 30*deg }
+  >> tangent_arc_point [0, length - ((length/3)*2)]
+  >> polar_line { distance: -sqrt(height^2 + (length/3)^2), angle: -30*deg }
+
+  // Fastener
+  >> polar_line { distance: thickness*2, angle: 45*deg }
+  >> h_line (length/3)
+  >> spline [[[length/3, 0], [length/-3/2, height], [length/-3, height]]]
+  >> h_line (width/-3)
+  >> polar_line { distance: thickness*2, angle: 45*deg }
+  >> polar_line { distance: length/-4, angle: -75*deg }
+
+  >> h_line (width/-2)
+  >> close;
+
+  result = base >> repeat_mirror_x;
+in
+  result
