@@ -1,56 +1,229 @@
 let
   include lib.sketch;
+  include lib.builder;
 
   width = 90.4;
   length = 54.6;
   height = 28.3;
-  thickness = 1.7;
 
-  base = workplane
-  // Front
-  >> h_line (width/2)
-  >> h_line (length/2)
-  >> v_line (height)
-  >> h_line (length/-2)
-  >> v_line (thickness*1.5)
+  thickness = 1.2;
+  connective = 0.4;
 
-  // Side
-  >> h_line (thickness*2)
-  >> h_line (height)
-  >> h_line (thickness*2)
-  >> h_line (height)
-  >> v_line (length/3)
-  >> h_line (thickness*2)
-  >> v_line (length/3)
-  >> h_line (thickness*-2)
-  >> v_line (length/3)
-  >> h_line (-height)
-  >> h_line (thickness*-2)
-  >> h_line (-height)
-  >> h_line (thickness*-2)
+  connective_z = ((thickness-connective)/-2);
+  
+  is_3d = sn -> sp -> if false sn else sp;
+  id = a -> a;
 
-  // Back
-  >> v_line (thickness*1.5)
-  >> h_line (length/2)
-  >> v_line (height)
-  >> h_line (length/-2)
+  front = build
+  >> put (workplane
+    >> h_line (width/2)
+    >> v_line (height)
+    >> h_line (width/-2)
+    >> close
+    >> (is_3d (extrude thickness) (id))
+  ) [0,0,0]
+  >> put (workplane
+    >> h_line (thickness)
+    >> v_line (height)
+    >> h_line (-thickness)
+    >> v_line (-height)
+    >> close
+    >> (is_3d (extrude connective) (id))
+    >> colour green
+  ) [width/2,0,is_3d connective_z 0]
+  >> put (workplane
+    >> h_line (length/2)
+    >> v_line (height)
+    >> h_line (length/-2)
+    >> close
+    >> (is_3d (extrude thickness) (id))
+  ) [width/2 + thickness,0,0]
+  >> put (workplane
+    >> h_line (width/2)
+    >> v_line (thickness)
+    >> h_line (width/-1)
+    >> v_line (thickness)
+    >> close
+    >> (is_3d (extrude connective) (id))
+    >> colour green
+  ) [0,height,is_3d connective_z 0]
+  >> done;
 
-  // Top
-  >> polar_line { distance: thickness*-1.5, angle: -25*deg }
-  >> polar_line { distance: sqrt(height^2 + (length/3)^2)-4, angle: 30*deg }
-  >> tangent_arc_point [0, length - ((length/3)*2)]
-  >> polar_line { distance: -sqrt(height^2 + (length/3)^2), angle: -30*deg }
+  bottom = build
+  >> put (workplane
+    >> h_line (width/2)
+    >> v_line (length)
+    >> h_line (width/-1)
+    >> v_line (length/-1)
+    >> h_line (width/-2)
+    >> close
+    >> (is_3d (extrude thickness) (id))
+  ) [0, 0, 0]
+  >> put (workplane
+    >> h_line (width/2)
+    >> v_line (thickness)
+    >> h_line (width/-1)
+    >> v_line (thickness)
+    >> close
+    >> (is_3d (extrude connective) (id))
+    >> colour green
+  ) [0, length, is_3d connective_z 0]
+  >> done;
 
-  // Fastener
-  >> polar_line { distance: thickness*2, angle: 45*deg }
-  >> h_line (length/3)
-  >> spline [[[length/3, 0], [length/-3/2, height], [length/-3, height]]]
-  >> h_line (width/-3)
-  >> polar_line { distance: thickness*2, angle: 45*deg }
-  >> polar_line { distance: length/-4, angle: -75*deg }
+  side = build
+  >> put (workplane
+    >> h_line (thickness)
+    >> v_line (length)
+    >> h_line (-thickness)
+    >> v_line (-length)
+    >> close
+    >> (is_3d (extrude connective) (id))
+    >> colour green
+  ) [0, 0, is_3d connective_z 0]
+  >> put (workplane
+    >> h_line (height)
+    >> v_line (length)
+    >> h_line (-height)
+    >> v_line (-length)
+    >> close
+    >> (is_3d (extrude thickness) (id))
+  ) [thickness, 0, 0]
+  >> put (workplane
+    >> h_line (thickness)
+    >> v_line (length)
+    >> h_line (-thickness)
+    >> v_line (-length)
+    >> close
+    >> (is_3d (extrude connective) (id))
+    >> colour green
+  ) [thickness + height, 0, is_3d connective_z 0]
+  >> put (workplane
+    >> h_line (thickness)
+    >> v_line (length)
+    >> h_line (-thickness*2)
+    >> v_line (-length)
+    >> h_line (thickness)
+    >> close
+    >> (is_3d (extrude thickness) (id))
+  ) [thickness + height + thickness + thickness, 0, 0]
+  >> put (workplane
+    >> h_line (thickness)
+    >> v_line (length)
+    >> h_line (-thickness)
+    >> v_line (-length)
+    >> close
+    >> (is_3d (extrude connective) (id))
+    >> colour green
+  ) [thickness + height + thickness + thickness*2, 0, is_3d connective_z 0]
+  >> put (workplane
+    >> h_line (height)
+    >> v_line (length/3)
+    >> h_line (thickness*2)
+    >> v_line (length/3)
+    >> h_line (thickness*-2)
+    >> v_line (length/3)
+    >> h_line (-height)
+    >> v_line (-length)
+    >> close
+    >> (is_3d (extrude thickness) (id))
+  ) [thickness + height + thickness + thickness*2 + thickness, 0, 0]
+  >> done;
 
-  >> h_line (width/-2)
-  >> close;
+  back = front;
+
+  top = build
+  >> put (workplane
+    >> h_line (width/2)
+    >> v_line (length)
+    >> h_line (width/-1)
+    >> v_line (length/-1)
+    >> h_line (width/-2)
+    >> close
+    >> (is_3d (extrude thickness) (id))
+  ) [0, 0, 0]
+  >> put (workplane
+    >> h_line (thickness)
+    >> v_line (length)
+    >> h_line (-thickness)
+    >> v_line (-length)
+    >> close
+    >> (is_3d (extrude connective) (id))
+    >> colour green
+  ) [width/2, 0, is_3d connective_z 0]
+  >> put (workplane
+    >> polar_line { distance: sqrt(height^2 + (length/3)^2), angle: 30*deg }
+    >> tangent_arc_point [0, length - ((length/3)*2)]
+    >> polar_line { distance: -sqrt(height^2 + (length/3)^2), angle: -30*deg }
+    >> close
+    >> (is_3d (extrude thickness) (id))
+  ) [width/2 + thickness, 0, 0]
+  >> put (workplane
+    >> h_line (width/2)
+    >> v_line (thickness)
+    >> h_line (width/-1)
+    >> v_line (thickness)
+    >> close
+    >> (is_3d (extrude connective) (id))
+    >> colour green
+  ) [0, length, is_3d connective_z 0]
+  >> done;
+
+  fastener = let p = ((cis (45*deg))*(thickness*2));
+  in build
+  >> put (workplane
+    >> h_line (width/2)
+    >> polar_line { distance: thickness*2, angle: 45*deg }
+    >> v_line (height)
+    >> h_line (width/-1)
+    >> v_line (-height)
+    >> polar_line { distance: thickness*2, angle: -45*deg }
+    >> h_line (width/-2)
+    >> close
+    >> (is_3d (extrude thickness) (id))
+  ) [0,0,0]
+  >> put (workplane
+    >> h_line (thickness)
+    >> v_line (height)
+    >> h_line (-thickness)
+    >> v_line (-height)
+    >> close
+    >> (is_3d (extrude connective) (id))
+    >> colour green
+  ) ([...p, 0] + [width/2,0, is_3d connective_z 0])
+  >> put (workplane
+    >> h_line (length/3)
+    >> spline [[[length/3, 0], [length/-3/2, height], [length/-3, height]]]
+    >> close
+    >> (is_3d (extrude thickness) (id))
+  ) ([...p, 0] + [width/2 + thickness,0,0])
+  >> put (workplane
+    >> h_line (width/3/2)
+    >> polar_line { distance: thickness*2, angle: 45*deg }
+    >> polar_line { distance: length/-4, angle: -75*deg }
+    >> h_line (width/3/-2)
+    >> close
+    >> (is_3d (extrude thickness) (id))
+  ) ([0, p.[Y], 0] + [0,height + thickness,0])
+  >> put (workplane
+    >> h_line (width/3/2 - (p.[X]))
+    >> v_line (thickness)
+    >> h_line (-width/3)
+    >> v_line (-thickness)
+    >> h_line (width/3/2 - (p.[X]))
+    >> close
+    >> (is_3d (extrude connective) (id))
+    >> colour green
+  ) ([...p, 0] + [0,height, is_3d connective_z 0])
+  >> done;
+
+  base = build
+  >> put front [0,0,0]
+  >> put bottom [0,height + thickness,0]
+  >> put side [width/2,height + thickness,0]
+  >> put back [0,height + thickness + length + thickness,0]
+  >> put top [0,height + thickness + length + thickness + height + thickness,0]
+  >> put fastener [0,height + thickness + length + thickness + height + thickness + length + thickness,0]
+  >> done;
 
   result = base >> repeat_mirror_x;
 in
