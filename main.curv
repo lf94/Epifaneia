@@ -2,16 +2,16 @@ let
   include lib.sketch;
   include lib.builder;
 
-  width = 90.4;
-  length = 54.6;
-  height = 28.3;
+  width = 90.4 / 3;
+  length = 54.6 / 3;
+  height = 28.3 / 3;
 
   thickness = 1.2;
   connective = 0.4;
 
   connective_z = ((thickness-connective)/-2);
   
-  is_3d = sn -> sp -> if false sn else sp;
+  is_3d = sn -> sp -> if true sn else sp;
   id = a -> a;
 
   front = build
