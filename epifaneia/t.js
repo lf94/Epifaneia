@@ -4,6 +4,7 @@ function compile(wgslString) {
   return {
     wgsl: [
       constants.emit(),
+      vertexShader.emit(),
       polygon.emit(),
       wgslString
     ].join(''),
@@ -13,9 +14,18 @@ function compile(wgslString) {
 
 function constants() {}
 constants.emit = function() {
-  return `let X = 0; let Y = 1; let Z = 2;
-    let nothing = 0.0;
+  return `  let X = 0; let Y = 1; let Z = 2;
+  let nothing = 0.0;
+
   `;
+};
+
+function vertexShader() {}
+vertexShader.emit = function() {
+  return `  [[stage(vertex)]]
+  fn vs_main([[location(0)]] in: vec3<f32>) -> [[builtin(position)]] vec4<f32> {
+    return vec4<f32>(in, 1.0);
+  }`;
 };
 
 polygon.invocations = 0;
@@ -49,7 +59,8 @@ polygon.emit = function() {
       j = i;
     }
     return s * sqrt(d);
-  }`;
+  }
+  `;
 };
 
 const { wgsl } = compile(`
@@ -61,6 +72,11 @@ const { wgsl } = compile(`
   fn sdf(p: vec3<f32>) -> f32 {
     var a: f32 = min(nothing, extrude(p, 4.0, ${polygon([[0.0, 0,0], [0.0, 1.0], [1.0, 0,0]])}));
     return a;
+  }
+
+  [[stage(fragment)]]
+  fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
+    return vec4<f32>(1.0, 0.0, 0.0, 1.0);
   }
 `);
 
