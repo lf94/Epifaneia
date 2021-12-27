@@ -35,15 +35,13 @@ async fn main() ->() {
   .await
   .expect("Unable to find a suitable GPU adapter!");
 
-  let surface_config = wgpu::SurfaceConfiguration {
+  let mut surface_config = wgpu::SurfaceConfiguration {
     usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
     format: surface.get_preferred_format(&adapter).unwrap(),
     width: size.width,
     height: size.height,
     present_mode: wgpu::PresentMode::Fifo,
   };
-  surface.configure(&device, &surface_config);
-
 
   let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
     label: None,
@@ -59,17 +57,54 @@ async fn main() ->() {
   let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
     label: None,
     contents: bytemuck::cast_slice(&[
-      [0.0f32, 0.0f32, 0.0f32],
-      [1.0f32, 0.0f32, 0.0f32],
-      [0.0f32, 1.0f32, 0.0f32],
+      [-1.0f32, 1.0f32, 0.0f32],
+      [-1.0f32, -1.0f32, 0.0f32],
       [1.0f32, 1.0f32, 0.0f32],
+      [1.0f32, -1.0f32, 0.0f32],
     ]),
     usage: wgpu::BufferUsages::VERTEX,
   });
 
+  let point_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    label: None,
+    contents: bytemuck::cast_slice(&[
+      [-1.0f32, 1.0f32, 0.0f32],
+      [-1.0f32, -1.0f32, 0.0f32],
+      [1.0f32, 1.0f32, 0.0f32],
+    ]),
+    usage: wgpu::BufferUsages::UNIFORM,
+  });
+
+  let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+    label: None,
+    entries: &[
+      wgpu::BindGroupLayoutEntry {
+        binding: 0,
+        visibility: wgpu::ShaderStages::FRAGMENT,
+        ty: wgpu::BindingType::Buffer {
+          ty: wgpu::BufferBindingType::Uniform,
+          has_dynamic_offset: false,
+          min_binding_size: None, // TODO: Calculate?
+        },
+        count: None,
+      }
+    ]
+  });
+
+  let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+    label: None,
+    layout: &bind_group_layout,
+    entries: &[
+      wgpu::BindGroupEntry {
+        binding: 0,
+        resource: point_buffer.as_entire_binding(),
+      }
+    ]
+  });
+
   let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
     label: None,
-    bind_group_layouts: &[],
+    bind_group_layouts: &[&bind_group_layout],
     push_constant_ranges: &[],
   });
 
@@ -93,7 +128,7 @@ async fn main() ->() {
     primitive: wgpu::PrimitiveState {
       topology: wgpu::PrimitiveTopology::TriangleStrip,
       strip_index_format: None,
-      front_face: wgpu::FrontFace::Cw,
+      front_face: wgpu::FrontFace::Ccw,
       cull_mode: Some(wgpu::Face::Back),
       polygon_mode: wgpu::PolygonMode::Fill,
       unclipped_depth: false,
@@ -107,43 +142,49 @@ async fn main() ->() {
     },
     multiview: None,
   });
-  
-  let frame = surface.get_current_texture().unwrap();
-  let frame_view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
-  
-  let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-    label: None,
-  });
-
-  {
-    let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-      label: None,
-      color_attachments: &[
-        wgpu::RenderPassColorAttachment {
-          view: &frame_view,
-          resolve_target: None,
-          ops: wgpu::Operations {
-            load: wgpu::LoadOp::Clear(wgpu::Color {
-              r: 0.1, g: 0.2, b: 0.3, a: 1.0
-            }),
-            store: true
-          }
-        }
-      ],
-      depth_stencil_attachment: None,
-    });
-
-    render_pass.set_pipeline(&render_pipeline);
-    render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-    render_pass.draw(0..4, 0..1);
-  }
-
-  queue.submit(std::iter::once(encoder.finish()));
-  frame.present();
 
   event_loop.run(move |event, _, _| {
     match event {
-      Event::MainEventsCleared => window.request_redraw(),
+      Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
+        surface_config.width = size.width;
+        surface_config.height = size.height;
+        surface.configure(&device, &surface_config);
+      },
+      Event::RedrawRequested(_) => {
+        let frame = surface.get_current_texture().unwrap();
+        let frame_view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+          label: None,
+        });
+
+        {
+          let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: None,
+            color_attachments: &[
+              wgpu::RenderPassColorAttachment {
+                view: &frame_view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                  load: wgpu::LoadOp::Clear(wgpu::Color {
+                    r: 0.1, g: 0.8, b: 0.3, a: 1.0
+                  }),
+                  store: true
+                }
+              }
+            ],
+            depth_stencil_attachment: None,
+          });
+
+          render_pass.set_pipeline(&render_pipeline);
+          render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+          render_pass.set_bind_group(0, &bind_group, &[]);
+          render_pass.draw(0..4, 0..1);
+        }
+
+        queue.submit(std::iter::once(encoder.finish()));
+        frame.present();
+      },
       _ => {},
     }
   });
