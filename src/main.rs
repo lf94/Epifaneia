@@ -1,6 +1,8 @@
+use std::time::Instant;
+
 use winit::{
   event::*,
-  event_loop::{EventLoop},
+  event_loop::{ControlFlow, EventLoop},
 };
 
 use async_std::prelude::*;
@@ -65,16 +67,6 @@ async fn main() ->() {
     usage: wgpu::BufferUsages::VERTEX,
   });
 
-  let point_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-    label: None,
-    contents: bytemuck::cast_slice(&[
-      [-1.0f32, 1.0f32, 0.0f32],
-      [-1.0f32, -1.0f32, 0.0f32],
-      [1.0f32, 1.0f32, 0.0f32],
-    ]),
-    usage: wgpu::BufferUsages::UNIFORM,
-  });
-
   let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
     label: None,
     entries: &[
@@ -84,20 +76,29 @@ async fn main() ->() {
         ty: wgpu::BindingType::Buffer {
           ty: wgpu::BufferBindingType::Uniform,
           has_dynamic_offset: false,
-          min_binding_size: None, // TODO: Calculate?
+          min_binding_size: None,
         },
         count: None,
-      }
-    ]
-  });
-
-  let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-    label: None,
-    layout: &bind_group_layout,
-    entries: &[
-      wgpu::BindGroupEntry {
-        binding: 0,
-        resource: point_buffer.as_entire_binding(),
+      },
+      wgpu::BindGroupLayoutEntry {
+        binding: 1,
+        visibility: wgpu::ShaderStages::FRAGMENT,
+        ty: wgpu::BindingType::Buffer {
+          ty: wgpu::BufferBindingType::Uniform,
+          has_dynamic_offset: false,
+          min_binding_size: None,
+        },
+        count: None,
+      },
+      wgpu::BindGroupLayoutEntry {
+        binding: 2,
+        visibility: wgpu::ShaderStages::FRAGMENT,
+        ty: wgpu::BindingType::Buffer {
+          ty: wgpu::BufferBindingType::Uniform,
+          has_dynamic_offset: false,
+          min_binding_size: None,
+        },
+        count: None,
       }
     ]
   });
@@ -143,19 +144,80 @@ async fn main() ->() {
     multiview: None,
   });
 
-  event_loop.run(move |event, _, _| {
+  let mut buffer_resolution = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    label: None,
+    contents: bytemuck::cast_slice(&[surface_config.width as f32, surface_config.height as f32]),
+    usage: wgpu::BufferUsages::UNIFORM,
+  });
+
+  let start = Instant::now();
+
+  let mut buffer_gpu_contents: Vec<u8> = vec![0;64];
+  let mut buffer_gpu = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    label: None,
+    contents: &buffer_gpu_contents,
+    usage: wgpu::BufferUsages::UNIFORM,
+  });
+
+  event_loop.run(move |event, _, control_flow| {
     match event {
-      Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-        surface_config.width = size.width;
-        surface_config.height = size.height;
-        surface.configure(&device, &surface_config);
+      Event::WindowEvent { ref event, window_id } => {
+        match event {
+          WindowEvent::Resized(size) => {
+            surface_config.width = size.width;
+            surface_config.height = size.height;
+
+            buffer_resolution = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+              label: None,
+              contents: bytemuck::cast_slice(&[surface_config.width as f32, surface_config.height as f32]),
+              usage: wgpu::BufferUsages::UNIFORM,
+            });
+
+            surface.configure(&device, &surface_config);
+          },
+          WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+          _ => {},
+        }
       },
       Event::RedrawRequested(_) => {
-        let frame = surface.get_current_texture().unwrap();
+        let frame_maybe = surface.get_current_texture();
+        if frame_maybe.is_err() {
+          return;
+        }
+        let frame = frame_maybe.unwrap();
         let frame_view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
         
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
           label: None,
+        });
+
+        let buffer_time = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+          label: None,
+          contents: 
+              &start
+              .elapsed()
+              .as_secs_f32().to_bits().to_le_bytes()
+            ,
+          usage: wgpu::BufferUsages::UNIFORM,
+        });
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+          label: None,
+          layout: &bind_group_layout,
+          entries: &[
+            wgpu::BindGroupEntry {
+              binding: 0,
+              resource: buffer_gpu.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+              binding: 1,
+              resource: buffer_resolution.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+              binding: 2,
+              resource: buffer_time.as_entire_binding(),
+            }
+          ]
         });
 
         {
@@ -185,6 +247,7 @@ async fn main() ->() {
         queue.submit(std::iter::once(encoder.finish()));
         frame.present();
       },
+      Event::MainEventsCleared => window.request_redraw(),
       _ => {},
     }
   });
