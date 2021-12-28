@@ -1,16 +1,32 @@
+use serde_json::{Value};
+use std::fs::OpenOptions;
 use std::time::Instant;
-
 use winit::{
   event::*,
   event_loop::{ControlFlow, EventLoop},
 };
-
-use async_std::prelude::*;
-
 use wgpu::util::DeviceExt;
 
 #[async_std::main]
-async fn main() ->() {
+async fn main() -> () {
+  std::fs::create_dir_all("/tmp/epifaneia").unwrap();
+
+  loop {
+    let _file_ctl = OpenOptions::new().truncate(true).read(true).write(true)
+      .create(true).open("/tmp/epifaneia/ctl").unwrap();
+    let file_json = OpenOptions::new().truncate(false).read(true).write(true)
+      .create(true).open("/tmp/epifaneia/json").unwrap();
+    let json_shader: Value = serde_json::from_reader(file_json).unwrap();
+    let text = match json_shader.get("text").unwrap() {
+      Value::String(s) => s,
+      _ => "",
+    };
+    let data = json_shader.get("data").unwrap();
+    create_and_run_webgpu_context(text, data).await;
+  }
+}
+
+async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -> () {
   let event_loop = EventLoop::new();
   let mut builder = winit::window::WindowBuilder::new();
   builder = builder.with_title("Epifaneia");
@@ -47,7 +63,7 @@ async fn main() ->() {
 
   let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
     label: None,
-    source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+    source: wgpu::ShaderSource::Wgsl(shader_text.into()),
   });
 
   let vertex_buffer_layout = wgpu::VertexBufferLayout {
@@ -152,16 +168,53 @@ async fn main() ->() {
 
   let start = Instant::now();
 
-  let mut buffer_gpu_contents: Vec<u8> = vec![0;64];
-  let mut buffer_gpu = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+  let mut buffer_gpu_contents: Vec<u8> = vec![];
+
+  match &shader_data {
+    Value::Array(o) => for l in o.iter() {
+      if let Value::Array(v) = l {
+        for p in v.iter() {
+          if let Value::Array(a) = p {
+            for b in a.iter() {
+              if let Value::Number(n) = b {
+                buffer_gpu_contents.append(
+                  &mut Vec::<u8>::from((n.as_f64().unwrap() as f32)
+                  .to_bits().to_le_bytes())
+                );
+              }
+            }
+          }
+        }
+
+        let padding_needed = buffer_gpu_contents.len() % 8;
+        // Must ensure each member is aligned.
+        if padding_needed > 0 {
+          buffer_gpu_contents.append(&mut vec![0u8; padding_needed]);
+        }
+      }
+    },
+    _ => { buffer_gpu_contents = vec![0u8;64]; }
+  }
+
+  let padding_needed = buffer_gpu_contents.len() % 8;
+  // Must ensure the struct is aligned.
+  if padding_needed > 0 {
+    buffer_gpu_contents.append(&mut vec![0u8; padding_needed]);
+  }
+
+  if buffer_gpu_contents.len() == 0 {
+    buffer_gpu_contents = vec![0u8;64]; 
+  }
+
+  let buffer_gpu = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
     label: None,
-    contents: &buffer_gpu_contents,
+    contents: bytemuck::cast_slice(&buffer_gpu_contents),
     usage: wgpu::BufferUsages::UNIFORM,
   });
 
   event_loop.run(move |event, _, control_flow| {
     match event {
-      Event::WindowEvent { ref event, window_id } => {
+      Event::WindowEvent { ref event, .. } => {
         match event {
           WindowEvent::Resized(size) => {
             surface_config.width = size.width;

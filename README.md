@@ -1,6 +1,6 @@
 # Epifaneia
 
-CAD with SDFs, using JavaScript, WGSL and Rust.
+Performant code CAD with SDFs.
 
 This project aims to provide enough control over WGSL output using JavaScript
 to facilitate code CAD (Don't know what code CAD is? Check out
@@ -13,9 +13,10 @@ it is to do.
 
 ## Usage
 
-Modify `wgsl.js` to your needs. For each new project, you should clone this
-file, as each project will have different needs. You can remove or add the
-needed functions / shapes, resulting in the most optimal WGSL outputs.
+Create a copy of `template.wgsl.js` and modify to your needs. For each new
+project, you should copy this file, as each project will have different needs.
+You can remove or add the needed functions / shapes, resulting in the most
+optimal WGSL outputs.
 
 I suggest saving files with the naming scheme "my-thing.wgsl.js". This conveys
 very clearly what the file contains.
@@ -23,14 +24,14 @@ very clearly what the file contains.
 Once happy, you can save the output for rendering later:
 
 ```
-node wgsl.js > sdf.json
+node template.wgsl.js > sdf.json
 ```
 
 or you can reload the current instance of Epifaneia:
 
 ```
-node wgsl.js > epifaneia.pipe
-# Alternatively "cat sdf.json > epifaneia.pipe"
+node wgsl.js > /tmp/epifaneia/json
+# Alternatively "cat sdf.json > /tmp/epifaneia/json"
 ```
 
 Epifaneia will read the JSON structure, which contains the SDF code and

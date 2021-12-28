@@ -10,7 +10,9 @@ function compile(wgslString) {
       shapes.emit(),
       wgslString
     ].join(''),
-    rust: [].join('')
+    data: [
+      ...polygon.data()
+    ],
   };
 }
 
@@ -50,12 +52,17 @@ polygon.invocations = 0;
 polygon.lists = [];
 function polygon(samplePointName, l) {
   polygon.lists.push(l);
-  return `polygon(${samplePointName}.xy, ${polygon.invocations}u, ${l.length})`;
+  const i = polygon.invocations;
+  polygon.invocations += 1;
+  return `polygon(${samplePointName}.xy, ${i}u, ${l.length})`;
 }
+polygon.data = function() { return polygon.lists; };
 polygon.emit = function() {
+  if (polygon.lists.length == 0) { return ''; }
+
   return `
   struct Points {
-    ${polygon.lists.map((l,i) => `p${i}: array<vec2<f32>, ${l.length}>;\n`)
+  ${polygon.lists.map((l,i) => `    p${i}: array<vec2<f32>, ${l.length}>;`)
     .join('\n')}
   };
 
@@ -109,13 +116,16 @@ shapes.emit = function() {
 // iTime is available.
 // iResolution is available.
 const p = 'p';
-const { wgsl } = compile(toonRayCaster(p, `
-  return torus(${p}, vec2<f32>(1.3, 0.45));
-  //return extrude(${p}, 1.0, ${polygon(p, [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]])});
-  //return min(
-  //  extrude(p, 4.0, circle(p.xy + vec2<f32>(1.0, 1.0), 2.0)),
-  //  extrude(p, 4.0, circle(p.xy, 2.0))
-  //);
+const { wgsl, data } = compile(toonRayCaster(p, `
+  var d: f32 = sphere(${p}, 0.1);
+  var j: f32 = 0.0;
+  for(var i = 0; i < 1000; i = i + 1) {
+    let np = ${p} + vec3<f32>(j, sin(j) * 1.0, 0.0);
+    if (np[0] > 1.0) { return d; }
+    d = min(d, sphere(np, 0.1) );
+    j = j + 0.05;
+  }
+  return d;
 `));
 
-console.log(wgsl);
+console.log(JSON.stringify({ text: wgsl, data }));
