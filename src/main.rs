@@ -9,13 +9,10 @@ use wgpu::util::DeviceExt;
 
 #[async_std::main]
 async fn main() -> () {
-  std::fs::create_dir_all("/tmp/epifaneia").unwrap();
-
   loop {
-    let _file_ctl = OpenOptions::new().truncate(true).read(true).write(true)
-      .create(true).open("/tmp/epifaneia/ctl").unwrap();
+    let args: Vec<String> = std::env::args().collect();
     let file_json = OpenOptions::new().truncate(false).read(true).write(true)
-      .create(true).open("/tmp/epifaneia/json").unwrap();
+      .create(true).open(&args[1]).unwrap();
     let json_shader: Value = serde_json::from_reader(file_json).unwrap();
     let text = match json_shader.get("text").unwrap() {
       Value::String(s) => s,
@@ -61,9 +58,14 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
     present_mode: wgpu::PresentMode::Fifo,
   };
 
-  let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
-    label: None,
+  let shader_sdf = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+    label: Some("shader sdf"),
     source: wgpu::ShaderSource::Wgsl(shader_text.into()),
+  });
+
+  let shader_window = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+    label: Some("shader window"),
+    source: wgpu::ShaderSource::Wgsl(include_str!("./window.wgsl").into()),
   });
 
   let vertex_buffer_layout = wgpu::VertexBufferLayout {
@@ -125,23 +127,27 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
     push_constant_ranges: &[],
   });
 
-  let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+  let mut fragment = wgpu::FragmentState {
+    module: &shader_sdf,
+    entry_point: "fs_main",
+    targets: &[wgpu::ColorTargetState {
+      format: surface_config.format,
+      blend: Some(wgpu::BlendState::REPLACE),
+      write_mask: wgpu::ColorWrites::ALL,
+    }]
+  };
+
+  let mut vertex = wgpu::VertexState {
+    module: &shader_sdf,
+    entry_point: "vs_main",
+    buffers: &[vertex_buffer_layout],
+  };
+
+  let mut render_pipeline_desc = wgpu::RenderPipelineDescriptor {
     label: None,
     layout: Some(&render_pipeline_layout),
-    vertex: wgpu::VertexState {
-      module: &shader,
-      entry_point: "vs_main",
-      buffers: &[vertex_buffer_layout],
-    },
-    fragment: Some(wgpu::FragmentState {
-      module: &shader,
-      entry_point: "fs_main",
-      targets: &[wgpu::ColorTargetState {
-        format: surface_config.format,
-        blend: Some(wgpu::BlendState::REPLACE),
-        write_mask: wgpu::ColorWrites::ALL,
-      }]
-    }),
+    vertex: vertex.clone(),
+    fragment: Some(fragment.clone()),
     primitive: wgpu::PrimitiveState {
       topology: wgpu::PrimitiveTopology::TriangleStrip,
       strip_index_format: None,
@@ -158,7 +164,16 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
       alpha_to_coverage_enabled: false,
     },
     multiview: None,
-  });
+  };
+
+  let render_pipeline_sdf = device.create_render_pipeline(&render_pipeline_desc);
+
+  vertex.module = &shader_window;
+  render_pipeline_desc.vertex = vertex;
+  fragment.module = &shader_window;
+  render_pipeline_desc.fragment = None;
+  render_pipeline_desc.layout = None;
+  let render_pipeline_window = device.create_render_pipeline(&render_pipeline_desc);
 
   let mut buffer_resolution = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
     label: None,
@@ -212,6 +227,21 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
     usage: wgpu::BufferUsages::UNIFORM,
   });
 
+  let sdf = device.create_texture(&wgpu::TextureDescriptor {
+    label: None,
+    size: wgpu::Extent3d {
+      width: 64,
+      height: 64,
+      depth_or_array_layers: 1,
+    },
+    mip_level_count: 1,
+    sample_count: 1,
+    dimension: wgpu::TextureDimension::D2,
+    format: surface.get_preferred_format(&adapter).unwrap(),
+    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+  });
+  let sdf_view = sdf.create_view(&wgpu::TextureViewDescriptor::default());
+
   event_loop.run(move |event, _, control_flow| {
     match event {
       Event::WindowEvent { ref event, .. } => {
@@ -237,13 +267,10 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
         if frame_maybe.is_err() {
           return;
         }
+
         let frame = frame_maybe.unwrap();
         let frame_view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
         
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-          label: None,
-        });
-
         let buffer_time = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
           label: None,
           contents: 
@@ -273,6 +300,38 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
           ]
         });
 
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+          label: None,
+        });
+
+        {
+          let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: None,
+            color_attachments: &[
+              wgpu::RenderPassColorAttachment {
+                view: &sdf_view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                  load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.8, b: 0.3, a: 1.0 }),
+                  store: true
+                }
+              }
+            ],
+            depth_stencil_attachment: None,
+          });
+
+          render_pass.set_pipeline(&render_pipeline_sdf);
+          render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+          render_pass.set_bind_group(0, &bind_group, &[]);
+          render_pass.draw(0..4, 0..1);
+        }
+
+        queue.submit(std::iter::once(encoder.finish()));
+
+        encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+          label: Some("window_encoder"),
+        });
+
         {
           let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
@@ -281,9 +340,7 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
                 view: &frame_view,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                  load: wgpu::LoadOp::Clear(wgpu::Color {
-                    r: 0.1, g: 0.8, b: 0.3, a: 1.0
-                  }),
+                  load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.0, b: 0.3, a: 1.0 }),
                   store: true
                 }
               }
@@ -291,16 +348,18 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
             depth_stencil_attachment: None,
           });
 
-          render_pass.set_pipeline(&render_pipeline);
+          render_pass.set_pipeline(&render_pipeline_window);
           render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-          render_pass.set_bind_group(0, &bind_group, &[]);
           render_pass.draw(0..4, 0..1);
         }
 
         queue.submit(std::iter::once(encoder.finish()));
+
         frame.present();
       },
-      Event::MainEventsCleared => window.request_redraw(),
+      Event::MainEventsCleared => {
+        window.request_redraw();
+      },
       _ => {},
     }
   });

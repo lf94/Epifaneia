@@ -6,10 +6,10 @@ module.exports = function(samplePointName, sdfFunctionBlockText) { return `
 let EPSILON = 0.0001;
 let MAX_STEPS = 500;
 let MIN_DIST = 0.0;
-let MAX_DIST = 100.0;
+let MAX_DIST = 25.0;
 let AMBIENT = 0.1;
 let EDGE_THICKNESS = 0.015;
-let SHADES = 4.0;
+let SHADES = 1.0;
   
 fn SceneSDF(${samplePointName}: vec3<f32>) -> f32
 {

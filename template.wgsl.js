@@ -119,11 +119,11 @@ const p = 'p';
 const { wgsl, data } = compile(toonRayCaster(p, `
   var d: f32 = sphere(${p}, 0.1);
   var j: f32 = 0.0;
+  var np = vec3<f32>(0.0, 0.0, 0.0);
   for(var i = 0; i < 1000; i = i + 1) {
-    let np = ${p} + vec3<f32>(j, sin(j) * 1.0, 0.0);
-    if (np[0] > 1.0) { return d; }
-    d = min(d, sphere(np, 0.1) );
-    j = j + 0.05;
+    np = ${p} + vec3<f32>(j, sin(j) * 1.0, 0.0);
+    d = min(d, sphere(np, 0.1));
+    j = j + 0.005;
   }
   return d;
 `));
