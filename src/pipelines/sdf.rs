@@ -73,7 +73,7 @@ impl PipelineSDF {
         module: &shader,
         entry_point: "fs_main",
         targets: &[wgpu::ColorTargetState {
-          format: wgpu::TextureFormat::Rgba8Unorm,
+          format: wgpu::TextureFormat::Bgra8UnormSrgb,
           blend: Some(wgpu::BlendState::REPLACE),
           write_mask: wgpu::ColorWrites::ALL,
         }]
@@ -185,19 +185,19 @@ impl PipelineSDF {
       ]
     });
 
-    let res = 512;
+    let resolution = 32;
 
     let texture = device.create_texture(&wgpu::TextureDescriptor {
       label: None,
       size: wgpu::Extent3d {
-        width: res,
-        height: res,
+        width: resolution,
+        height: resolution,
         depth_or_array_layers: 1,
       },
       mip_level_count: 1,
       sample_count: 1,
       dimension: wgpu::TextureDimension::D2,
-      format: wgpu::TextureFormat::Rgba8Unorm,
+      format: wgpu::TextureFormat::Bgra8UnormSrgb,
       usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
     });
 

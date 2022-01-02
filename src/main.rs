@@ -76,11 +76,11 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
   let mut pipeline_sdf = PipelineSDF::new(&device, shader_text);
   let buffer_points = PipelineSDF::json_points_to_gpu_buffer(&device, shader_data);
 
-  let resolution = (64.0, 64.0);
+  let resolution = 256.0;
 
   let mut buffer_resolution = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
     label: None,
-    contents: bytemuck::cast_slice(&[resolution.0, resolution.1]),
+    contents: bytemuck::cast_slice(&[resolution, resolution]),
     usage: wgpu::BufferUsages::UNIFORM,
   });
 
@@ -100,10 +100,10 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
   let buffer_vertices_window = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
     label: None,
     contents: bytemuck::cast_slice(&[
-      Vertex { point: [-1.0f32, 1.0f32, 0.0f32], tex_coord: [0.0, 1.0] },
-      Vertex { point: [-1.0f32, -1.0f32, 0.0f32], tex_coord: [0.0, 0.0] },
-      Vertex { point: [1.0f32, 1.0f32, 0.0f32], tex_coord: [1.0, 1.0] },
-      Vertex { point: [1.0f32, -1.0f32, 0.0f32], tex_coord: [1.0, 0.0] },
+      Vertex { point: [-1.0f32, 1.0f32, 0.0f32], tex_coord: [0.0, 0.0] },
+      Vertex { point: [-1.0f32, -1.0f32, 0.0f32], tex_coord: [0.0, 1.0] },
+      Vertex { point: [1.0f32, 1.0f32, 0.0f32], tex_coord: [1.0, 0.0] },
+      Vertex { point: [1.0f32, -1.0f32, 0.0f32], tex_coord: [1.0, 1.0] },
     ]),
     usage: wgpu::BufferUsages::VERTEX,
   });
@@ -128,7 +128,7 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
 
             buffer_resolution = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
               label: None,
-              contents: bytemuck::cast_slice(&[resolution.0, resolution.1]),
+              contents: bytemuck::cast_slice(&[resolution, resolution]),
               usage: wgpu::BufferUsages::UNIFORM,
             });
 
