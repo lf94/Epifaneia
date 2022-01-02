@@ -6,12 +6,20 @@ use winit::{
   event_loop::{ControlFlow, EventLoop},
 };
 use wgpu::util::DeviceExt;
+use bytemuck::{Pod,Zeroable};
 
 mod pipelines;
 use crate::pipelines::{
   sdf::PipelineSDF,
   window::PipelineWindow,
 };
+
+#[derive(Clone,Copy,Pod,Zeroable)]
+#[repr(C)]
+struct Vertex {
+  point: [f32; 3],
+  tex_coord: [f32; 2],
+}
 
 #[async_std::main]
 async fn main() -> () {
@@ -78,13 +86,24 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
 
   let start = Instant::now();
 
-  let buffer_vertices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+  let buffer_vertices_sdf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
     label: None,
     contents: bytemuck::cast_slice(&[
       [-1.0f32, 1.0f32, 0.0f32],
       [-1.0f32, -1.0f32, 0.0f32],
       [1.0f32, 1.0f32, 0.0f32],
       [1.0f32, -1.0f32, 0.0f32],
+    ]),
+    usage: wgpu::BufferUsages::VERTEX,
+  });
+
+  let buffer_vertices_window = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    label: None,
+    contents: bytemuck::cast_slice(&[
+      Vertex { point: [-1.0f32, 1.0f32, 0.0f32], tex_coord: [0.0, 1.0] },
+      Vertex { point: [-1.0f32, -1.0f32, 0.0f32], tex_coord: [0.0, 0.0] },
+      Vertex { point: [1.0f32, 1.0f32, 0.0f32], tex_coord: [1.0, 1.0] },
+      Vertex { point: [1.0f32, -1.0f32, 0.0f32], tex_coord: [1.0, 0.0] },
     ]),
     usage: wgpu::BufferUsages::VERTEX,
   });
@@ -128,8 +147,8 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
         let frame = frame_maybe.unwrap();
         let frame_view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        let texture_sdf = pipeline_sdf.render_pass(&device, &queue, start, &buffer_vertices, &buffer_resolution, &buffer_points);
-        pipeline_window.render_pass(&device, &queue, &frame_view, &buffer_vertices, &texture_sdf, &texture_sampler);
+        let texture_sdf = pipeline_sdf.render_pass(&device, &queue, start, &buffer_vertices_sdf, &buffer_resolution, &buffer_points);
+        pipeline_window.render_pass(&device, &queue, &frame_view, &buffer_vertices_window, &texture_sdf, &texture_sampler);
 
         frame.present();
       },

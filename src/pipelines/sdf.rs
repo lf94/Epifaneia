@@ -185,11 +185,13 @@ impl PipelineSDF {
       ]
     });
 
+    let res = 512;
+
     let texture = device.create_texture(&wgpu::TextureDescriptor {
       label: None,
       size: wgpu::Extent3d {
-        width: 64,
-        height: 64,
+        width: res,
+        height: res,
         depth_or_array_layers: 1,
       },
       mip_level_count: 1,
@@ -213,7 +215,7 @@ impl PipelineSDF {
             view: &view,
             resolve_target: None,
             ops: wgpu::Operations {
-              load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.8, b: 0.3, a: 1.0 }),
+              load: wgpu::LoadOp::Clear(wgpu::Color { r: 1.0, g: 0.0, b: 0.0, a: 1.0 }),
               store: true
             }
           }

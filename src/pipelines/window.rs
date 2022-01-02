@@ -11,9 +11,9 @@ impl PipelineWindow {
     });
 
     let vertex_buffer_layout = wgpu::VertexBufferLayout {
-      array_stride: std::mem::size_of::<[f32;3]>() as wgpu::BufferAddress,
+      array_stride: std::mem::size_of::<[f32;5]>() as wgpu::BufferAddress,
       step_mode: wgpu::VertexStepMode::Vertex,
-      attributes: &wgpu::vertex_attr_array![0 => Float32x3],
+      attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2],
     };
 
     let texture_bind_group_layout = device.create_bind_group_layout(
@@ -131,7 +131,7 @@ impl PipelineWindow {
             view: frame_view,
             resolve_target: None,
             ops: wgpu::Operations {
-              load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.0, b: 0.3, a: 1.0 }),
+              load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.0, g: 1.0, b: 0.0, a: 1.0 }),
               store: true
             }
           }
