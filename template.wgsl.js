@@ -98,9 +98,18 @@ shapes.emit = function() {
     fn torus(samplePoint: vec3<f32>, dimensions: vec2<f32>) -> f32 {
     	return length( vec2<f32>(length(samplePoint.xz)-dimensions.x,samplePoint.y) )-dimensions.y;
     }
+
+    fn sphere_bb(diameter: f32) -> vec2<vec3<f32>> {
+      let r = diameter / 2.0;
+      return vec2<vec3<f32>>(
+        vec3<f32>(-r, -r, -r),
+        vec3<f32>( r,  r,  r)
+      );
+    }
     fn sphere(p: vec3<f32>, diameter: f32) -> f32 {
       return length(p) - (diameter / 2.0);
     }
+
     fn circle(p: vec2<f32>, diameter: f32) -> f32 {
       return length(p) - (diameter / 2.0);
     }

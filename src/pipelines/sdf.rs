@@ -153,8 +153,8 @@ impl PipelineSDF {
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     time: std::time::Instant,
+    resolution: u32,
     buffer_vertices: &wgpu::Buffer,
-    buffer_resolution: &wgpu::Buffer,
     buffer_points: &wgpu::Buffer
   ) -> wgpu::Texture {
     let buffer_time = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -165,6 +165,28 @@ impl PipelineSDF {
         .as_secs_f32().to_bits().to_le_bytes(),
       usage: wgpu::BufferUsages::UNIFORM,
     });
+
+    let buffer_resolution = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+      label: None,
+      contents: bytemuck::cast_slice(&[resolution as f32, resolution as f32]),
+      usage: wgpu::BufferUsages::UNIFORM,
+    });
+
+    let texture = device.create_texture(&wgpu::TextureDescriptor {
+      label: None,
+      size: wgpu::Extent3d {
+        width: resolution,
+        height: resolution,
+        depth_or_array_layers: 1,
+      },
+      mip_level_count: 1,
+      sample_count: 1,
+      dimension: wgpu::TextureDimension::D2,
+      format: wgpu::TextureFormat::Bgra8UnormSrgb,
+      usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+    });
+
+    let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
       label: None,
@@ -185,23 +207,6 @@ impl PipelineSDF {
       ]
     });
 
-    let resolution = 32;
-
-    let texture = device.create_texture(&wgpu::TextureDescriptor {
-      label: None,
-      size: wgpu::Extent3d {
-        width: resolution,
-        height: resolution,
-        depth_or_array_layers: 1,
-      },
-      mip_level_count: 1,
-      sample_count: 1,
-      dimension: wgpu::TextureDimension::D2,
-      format: wgpu::TextureFormat::Bgra8UnormSrgb,
-      usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-    });
-
-    let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
       label: None,

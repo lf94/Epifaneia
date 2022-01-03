@@ -90,7 +90,7 @@ fn ComputeLighting(point: vec3<f32>, lightDir: vec3<f32>, lightColor: vec3<f32>)
     var fragColor = vec4<f32>(0.0, 0.0, 0.0, 1.0);
 
     var viewDir: vec3<f32> = RayDirection(45.0, iResolution.xy, fragCoord.xy);
-    let origin = vec3<f32>(sin(iTime.secs) * 9.0, (sin(iTime.secs * 2.0) * 4.0) + 6.0, cos(iTime.secs) * 9.0);
+    let origin = vec3<f32>(0.0, 0.0, -4.0);
     let viewTransform = LookAt(origin, vec3<f32>(0.0), vec3<f32>(0.0, 1.0, 0.0));
     viewDir = (viewTransform * vec4<f32>(viewDir, 0.0)).xyz;
     
@@ -109,7 +109,7 @@ fn ComputeLighting(point: vec3<f32>, lightDir: vec3<f32>, lightColor: vec3<f32>)
     }
     
     let hitPoint: vec3<f32> = origin + (dist * viewDir);
-    let lightDir: vec3<f32> = vec3<f32>(sin(iTime.secs * 2.0) * 6.0, 4.0, sin(iTime.secs * 1.25) * 5.0);
+    let lightDir: vec3<f32> = vec3<f32>(1.0,1.0,1.0);
     var color: vec3<f32> = vec3<f32>(1.0, 0.5, 0.1);
     
     color = ComputeLighting(hitPoint, lightDir, color);

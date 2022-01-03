@@ -76,14 +76,6 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
   let mut pipeline_sdf = PipelineSDF::new(&device, shader_text);
   let buffer_points = PipelineSDF::json_points_to_gpu_buffer(&device, shader_data);
 
-  let resolution = 256.0;
-
-  let mut buffer_resolution = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-    label: None,
-    contents: bytemuck::cast_slice(&[resolution, resolution]),
-    usage: wgpu::BufferUsages::UNIFORM,
-  });
-
   let start = Instant::now();
 
   let buffer_vertices_sdf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -118,6 +110,15 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
       ..Default::default()
   });
 
+  surface.configure(&device, &surface_config);
+
+  // Initial resolution is 32x32
+  let min_resolution = 32;
+  let max_resolution = 1024;
+  let mut resolution = min_resolution;
+  let mut moved = false;
+  let mut texture_sdf = pipeline_sdf.render_pass(&device, &queue, start, resolution, &buffer_vertices_sdf, &buffer_points);
+
   event_loop.run(move |event, _, control_flow| {
     match event {
       Event::WindowEvent { ref event, .. } => {
@@ -125,13 +126,6 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
           WindowEvent::Resized(size) => {
             surface_config.width = size.width;
             surface_config.height = size.height;
-
-            buffer_resolution = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-              label: None,
-              contents: bytemuck::cast_slice(&[resolution, resolution]),
-              usage: wgpu::BufferUsages::UNIFORM,
-            });
-
             surface.configure(&device, &surface_config);
           },
           WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
@@ -145,9 +139,16 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
         }
 
         let frame = frame_maybe.unwrap();
+
         let frame_view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        let texture_sdf = pipeline_sdf.render_pass(&device, &queue, start, &buffer_vertices_sdf, &buffer_resolution, &buffer_points);
+        resolution = std::cmp::min(resolution*2, max_resolution);
+
+        // Don't re-render if nothing has changed.
+        if resolution != max_resolution {
+          texture_sdf = pipeline_sdf.render_pass(&device, &queue, start, resolution, &buffer_vertices_sdf, &buffer_points);
+        }
+
         pipeline_window.render_pass(&device, &queue, &frame_view, &buffer_vertices_window, &texture_sdf, &texture_sampler);
 
         frame.present();
