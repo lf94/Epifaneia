@@ -51,6 +51,16 @@ impl PipelineSDF {
             min_binding_size: None,
           },
           count: None,
+        },
+        wgpu::BindGroupLayoutEntry {
+          binding: 3,
+          visibility: wgpu::ShaderStages::FRAGMENT,
+          ty: wgpu::BindingType::Buffer {
+            ty: wgpu::BufferBindingType::Uniform,
+            has_dynamic_offset: false,
+            min_binding_size: None,
+          },
+          count: None,
         }
       ]
     });
@@ -154,6 +164,7 @@ impl PipelineSDF {
     queue: &wgpu::Queue,
     time: std::time::Instant,
     resolution: u32,
+    mouse_delta: (f64, f64),
     buffer_vertices: &wgpu::Buffer,
     buffer_points: &wgpu::Buffer
   ) -> wgpu::Texture {
@@ -169,6 +180,12 @@ impl PipelineSDF {
     let buffer_resolution = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
       label: None,
       contents: bytemuck::cast_slice(&[resolution as f32, resolution as f32]),
+      usage: wgpu::BufferUsages::UNIFORM,
+    });
+
+    let buffer_mouse = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+      label: None,
+      contents: bytemuck::cast_slice(&[mouse_delta.0 as f32, mouse_delta.1 as f32]),
       usage: wgpu::BufferUsages::UNIFORM,
     });
 
@@ -203,6 +220,10 @@ impl PipelineSDF {
         wgpu::BindGroupEntry {
           binding: 2,
           resource: buffer_time.as_entire_binding(),
+        },
+        wgpu::BindGroupEntry {
+          binding: 3,
+          resource: buffer_mouse.as_entire_binding(),
         }
       ]
     });

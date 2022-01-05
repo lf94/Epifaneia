@@ -35,8 +35,13 @@ bindings.emit = function() {
       secs: f32;
     };
 
+    struct Mouse {
+      xy: vec2<f32>;
+    };
+
     [[group(0), binding(1)]] var<uniform> iResolution: Resolution;
     [[group(0), binding(2)]] var<uniform> iTime: Time;
+    [[group(0), binding(3)]] var<uniform> iMouse: Mouse;
   `;
 };
 
@@ -99,13 +104,6 @@ shapes.emit = function() {
     	return length( vec2<f32>(length(samplePoint.xz)-dimensions.x,samplePoint.y) )-dimensions.y;
     }
 
-    fn sphere_bb(diameter: f32) -> vec2<vec3<f32>> {
-      let r = diameter / 2.0;
-      return vec2<vec3<f32>>(
-        vec3<f32>(-r, -r, -r),
-        vec3<f32>( r,  r,  r)
-      );
-    }
     fn sphere(p: vec3<f32>, diameter: f32) -> f32 {
       return length(p) - (diameter / 2.0);
     }
@@ -113,6 +111,7 @@ shapes.emit = function() {
     fn circle(p: vec2<f32>, diameter: f32) -> f32 {
       return length(p) - (diameter / 2.0);
     }
+
     fn extrude(p: vec3<f32>, d: f32, dv: f32) -> f32 {
       let h = d / 2.0;
       return max(abs(p[Z]) - h, dv);
@@ -127,13 +126,8 @@ shapes.emit = function() {
 const p = 'p';
 const { wgsl, data } = compile(toonRayCaster(p, `
   var d: f32 = sphere(${p}, 0.1);
-  var j: f32 = 0.0;
   var np = vec3<f32>(0.0, 0.0, 0.0);
-  for(var i = 0; i < 1000; i = i + 1) {
-    np = ${p} + vec3<f32>(j, sin(j) * 1.0, 0.0);
-    d = min(d, sphere(np, 0.1));
-    j = j + 0.005;
-  }
+  d = min(d, sphere(${p}, 0.1));
   return d;
 `));
 

@@ -8,7 +8,7 @@ let MAX_STEPS = 500;
 let MIN_DIST = 0.0;
 let MAX_DIST = 25.0;
 let AMBIENT = 0.1;
-let EDGE_THICKNESS = 0.015;
+let EDGE_THICKNESS = 0.0;
 let SHADES = 1.0;
   
 fn SceneSDF(${samplePointName}: vec3<f32>) -> f32
@@ -84,38 +84,54 @@ fn ComputeLighting(point: vec3<f32>, lightDir: vec3<f32>, lightColor: vec3<f32>)
     return color;
 }
 
-  [[stage(fragment)]]
-  fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
-    var fragCoord = in;
-    var fragColor = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+fn rot_x (v: vec3<f32>, theta: f32) -> vec3<f32> {
+  let s = sin(theta);
+  let c = cos(theta);
+  return vec3<f32>(v.x,c*v.y-s*v.z,s*v.y+c*v.z);
+}
+fn rot_y (v: vec3<f32>, theta: f32) -> vec3<f32> {
+  let s = sin(theta);
+  let c = cos(theta);
+  return vec3<f32>(c*v.x+s*v.z,v.y,c*v.z-s*v.x);
+}
 
-    var viewDir: vec3<f32> = RayDirection(45.0, iResolution.xy, fragCoord.xy);
-    let origin = vec3<f32>(0.0, 0.0, -4.0);
-    let viewTransform = LookAt(origin, vec3<f32>(0.0), vec3<f32>(0.0, 1.0, 0.0));
-    viewDir = (viewTransform * vec4<f32>(viewDir, 0.0)).xyz;
-    
-    let dist: f32 = March(origin, viewDir, MIN_DIST, MAX_DIST);
-    
-    if (dist > MAX_DIST - EPSILON) // No hit
-    {
-        fragColor = vec4<f32>(0.6, 0.6, 0.6, 0.6);
-        return fragColor;
-    }
-    
-    if (dist < EPSILON) // Edge hit
-    {
-        fragColor = vec4<f32>(0.0, 0.0, 0.0, 0.0);
-        return fragColor;
-    }
-    
-    let hitPoint: vec3<f32> = origin + (dist * viewDir);
-    let lightDir: vec3<f32> = vec3<f32>(1.0,1.0,1.0);
-    var color: vec3<f32> = vec3<f32>(1.0, 0.5, 0.1);
-    
-    color = ComputeLighting(hitPoint, lightDir, color);
-    
-    fragColor = vec4<f32>(color, 1.0);
-    return fragColor;
+[[stage(fragment)]]
+fn fs_main([[builtin(position)]] in: vec4<f32>) -> [[location(0)]] vec4<f32> {
+  var fragCoord = in;
+  var fragColor = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+
+  let eye_z = tan(radians(67.5)) * max(0.6, max(0.1, 0.1));
+  let rxy = vec2<f32>((iMouse.xy / iResolution.xy) - 0.5) * 3.14159;
+  var eye = vec3<f32>(cos(rxy.x)*eye_z, sin(rxy.y)*eye_z, -eye_z);
+
+  var viewDir: vec3<f32> = RayDirection(45.0, iResolution.xy, fragCoord.xy);
+  let target = vec3<f32>(0.0, 0.0, 0.0);
+  let up = vec3<f32>(0.0, 1.0, 0.0);
+  let viewTransform = LookAt(eye, target, up);
+  viewDir = (viewTransform * vec4<f32>(viewDir, 0.0)).xyz;
+  
+  let dist: f32 = March(eye, viewDir, MIN_DIST, MAX_DIST);
+  
+  if (dist > MAX_DIST - EPSILON) // No hit
+  {
+      fragColor = vec4<f32>(0.6, 0.6, 0.6, 0.6);
+      return fragColor;
   }
+  
+  if (dist < EPSILON) // Edge hit
+  {
+      fragColor = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+      return fragColor;
+  }
+  
+  let hitPoint: vec3<f32> = eye + (dist * viewDir);
+  let lightDir: vec3<f32> = vec3<f32>(1.0,1.0,1.0);
+  var color: vec3<f32> = vec3<f32>(1.0, 0.5, 0.1);
+  
+  color = ComputeLighting(hitPoint, lightDir, color);
+  
+  fragColor = vec4<f32>(color, 1.0);
+  return fragColor;
+}
 `;
 };

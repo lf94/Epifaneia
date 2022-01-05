@@ -15,6 +15,9 @@ Epifaneia uses progressive upscaling to stay fast. This will result in the first
 few moments of each camera movement to be low resolution but will reach full
 resolution eventually.
 
+A collection of libraries can be found in `lib/` for things like sketching
+the outline of a face, which is common in CAD software.
+
 ## Working
 
 Create a copy of `template.wgsl.js` and modify to your needs. For each new

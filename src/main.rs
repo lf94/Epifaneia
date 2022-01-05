@@ -116,8 +116,12 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
   let min_resolution = 32;
   let max_resolution = 1024;
   let mut resolution = min_resolution;
-  let mut moved = false;
-  let mut texture_sdf = pipeline_sdf.render_pass(&device, &queue, start, resolution, &buffer_vertices_sdf, &buffer_points);
+  let mut mouse_point = PhysicalPosition<f64>::new(0.0, 0.0);
+  let mut mouse_point_when_pressed = mouse_point;
+  let mut texture_sdf = pipeline_sdf.render_pass(
+    &device, &queue,
+    start, resolution, mouse_delta,
+    &buffer_vertices_sdf, &buffer_points);
 
   event_loop.run(move |event, _, control_flow| {
     match event {
@@ -127,6 +131,21 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
             surface_config.width = size.width;
             surface_config.height = size.height;
             surface.configure(&device, &surface_config);
+          },
+          WindowEvent::CursorMoved { position, .. } => {
+            mouse_point = position;
+          },
+          WindowEvent::MouseInput { state, button, .. } => {
+            match button {
+              MouseButton::Left => match state {
+                ElementState::Pressed => {
+                  mouse_point_when_pressed = mouse_point;
+                  mouse_pressing = true;
+                },
+                ElementState::Released => { mouse_pressing = false;  },
+              },
+              _ => {},
+            }
           },
           WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
           _ => {},
@@ -139,15 +158,19 @@ async fn create_and_run_webgpu_context(shader_text: &str, shader_data: &Value) -
         }
 
         let frame = frame_maybe.unwrap();
-
         let frame_view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        resolution = std::cmp::min(resolution*2, max_resolution);
+        resolution = std::cmp::min(resolution, max_resolution);
 
-        // Don't re-render if nothing has changed.
+        // Don't re-render if reached max resolution or no movement
         if resolution != max_resolution {
-          texture_sdf = pipeline_sdf.render_pass(&device, &queue, start, resolution, &buffer_vertices_sdf, &buffer_points);
+          texture_sdf = pipeline_sdf.render_pass(
+            &device, &queue,
+            start, resolution, mouse_delta,
+            &buffer_vertices_sdf, &buffer_points);
         }
+
+        resolution = resolution*2;
 
         pipeline_window.render_pass(&device, &queue, &frame_view, &buffer_vertices_window, &texture_sdf, &texture_sampler);
 
